@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using Button = UnityEngine.UI.Button;
 
 
@@ -20,10 +23,15 @@ public class RoomManager : MonoBehaviourPunCallbacks
     [SerializeField] private GameObject scrollListRoom = null;
     [SerializeField] private Transform content = null;
     private const string PlayerPrefsNameKey = "PlayerName";
-    [SerializeField] private TMP_Text statusText = null;
+    [SerializeField] private Text statusText = null;
     private List<RoomListing> _listings = new List<RoomListing>();
     [SerializeField]
-    private RoomListing roomListing;
+    private RoomListing room;
+    public EventSystem eventSystem;
+    PointerEventData _pointerEventData;
+    public GraphicRaycaster raycaster;
+
+    public GameObject panelRoomWaitPlayer;
     private void Awake()
     {
         PhotonNetwork.AutomaticallySyncScene = true;
@@ -74,8 +82,8 @@ public class RoomManager : MonoBehaviourPunCallbacks
             }
             else
             {
-                RoomListing listing = Instantiate(roomListing, content);
-                if (listing)
+                RoomListing listing = Instantiate(room, content);
+                if (listing != null)
                 {
                     listing.SetRoomInfo(roomInfo);
                     _listings.Add(listing);
@@ -92,7 +100,13 @@ public class RoomManager : MonoBehaviourPunCallbacks
         }
         PhotonNetwork.CreateRoom(
             nameRoomInputField.text, 
-            new RoomOptions {MaxPlayers = MaxPlayersPerRoom},
+            new RoomOptions {
+                MaxPlayers = MaxPlayersPerRoom, 
+                IsOpen = true, 
+                IsVisible = true,
+                CleanupCacheOnLeave = true,
+                PublishUserId = true
+            },
             TypedLobby.Default
         );
     }
@@ -119,6 +133,8 @@ public class RoomManager : MonoBehaviourPunCallbacks
         {
             Debug.Log("Matching is ready to begin!");
         }
+        gameObject.transform.Find("Manager").gameObject.active = false;
+        panelRoomWaitPlayer.active = true;
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
@@ -133,11 +149,15 @@ public class RoomManager : MonoBehaviourPunCallbacks
     public override void OnJoinRoomFailed(short returnCode, string message)
     {
         Debug.Log("Room is full or closed !");
+        statusText.text = "Room is full or closed !";
+        StartCoroutine(ResetTextStatus(2));
     }
 
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
         Debug.Log("Room name existed!");
+        statusText.text = "Room name existed!";
+        StartCoroutine(ResetTextStatus(2));
     }
 
     public override void OnConnectedToMaster()
@@ -145,5 +165,43 @@ public class RoomManager : MonoBehaviourPunCallbacks
         Debug.Log("Connected To Master.");
         nameRoomInputField.interactable = true;
         PhotonNetwork.JoinLobby();
+        statusText.text = "Connected To Master";
+        StartCoroutine(ResetTextStatus(2));
+    }
+
+    IEnumerator ResetTextStatus(float time)
+    {
+        yield return new WaitForSeconds(time);
+        statusText.text = "";
+    }
+
+    void Update()
+    {
+        if (Input.GetMouseButton(0))
+        {
+            _pointerEventData = new PointerEventData(eventSystem);
+            _pointerEventData.position = Input.mousePosition;
+            List<RaycastResult> results = new List<RaycastResult>();
+            raycaster.Raycast(_pointerEventData, results);
+
+            foreach (RaycastResult result in results)
+            {
+                if (result.gameObject.CompareTag("ROOM_ITEM"))
+                {
+                    RoomListing listing = result.gameObject.GetComponent<RoomListing>();
+                    if (listing != null)
+                    {
+                        JoinRoomByClick(listing.RoomInfo);
+                    }
+                    
+                }
+            }
+        }
+    }
+
+    public void JoinRoomByClick(RoomInfo roomInfo)
+    {
+        PhotonNetwork.JoinRoom(roomInfo.Name);
     }
 }
+

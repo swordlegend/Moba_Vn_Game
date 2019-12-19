@@ -9,6 +9,7 @@ TagManager:
   - MeshFloor
   - CamPlayer
   - WallHome
+  - ROOM_ITEM
   layers:
   - Default
   - TransparentFX

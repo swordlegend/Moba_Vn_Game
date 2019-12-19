@@ -1,4 +1,5 @@
-﻿using Photon.Realtime;
+﻿using System;
+using Photon.Realtime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -30,4 +31,6 @@ public class RoomListing : MonoBehaviour
             textRoomStatus.color = Color.red;
         }
     }
+    
+    
 }
